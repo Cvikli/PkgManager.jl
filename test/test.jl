@@ -5,14 +5,14 @@ using PkgResolver: zygoteextensions, refclosures, aritmetics, hwallocator
 using PkgResolver: losses, optimisers, relevancestacktrace, httputils
 
 
-# SOLVE(zygoteextensions)
-# SOLVE(hwallocator)
-# SOLVE(refclosures)
-# SOLVE(aritmetics)
-# SOLVE(losses)
-# SOLVE(relevancestacktrace)
-# SOLVE(optimisers)
-# SOLVE(httputils)
+SOLVE(zygoteextensions)
+SOLVE(hwallocator)
+SOLVE(refclosures)
+SOLVE(aritmetics)
+SOLVE(losses)
+SOLVE(relevancestacktrace)
+SOLVE(optimisers)
+SOLVE(httputils)
 
 
 #%%

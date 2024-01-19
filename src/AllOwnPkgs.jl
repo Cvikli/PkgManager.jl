@@ -8,7 +8,6 @@ all_own_pkg = Dict{String, PackageSpec}(
 	"HTTPUtils"           => (httputils           = Pkg.PackageSpec(path=julia_awesome_path * "HTTPUtils.jl");),
 	"Optimisers"          => (optimisers          = Pkg.PackageSpec(path=julia_awesome_path * "Optimisers.jl");),
 	"HwAllocator"         => (hwallocator         = Pkg.PackageSpec(path=julia_awesome_path * "HwAllocator.jl");),
-	"NamedColors"         => (namedcolors         = Pkg.PackageSpec(path=julia_awesome_path * "NamedColors.jl");),
 	"Aritmetics"          => (aritmetics          = Pkg.PackageSpec(path=julia_awesome_path * "Aritmetics.jl");),
 	"ZygoteExtensions"    => (zygoteextensions    = Pkg.PackageSpec(path=julia_awesome_path * "ZygoteExtensions.jl");),
 	"LazySortedArray.jl"  => (lazysortedarray     = Pkg.PackageSpec(path=julia_awesome_path * "LazySortedArray.jl.jl");),
@@ -16,5 +15,5 @@ all_own_pkg = Dict{String, PackageSpec}(
 	"RefClosures"         => (refclosures         = Pkg.PackageSpec(path=julia_awesome_path * "RefClosures.jl");),
 	"UnicodePlotsSimple"  => (unicodeplotssimple  = Pkg.PackageSpec(path=julia_awesome_path * "UnicodePlotsSimple.jl/");),
 	"Boilerplate"         => (boilerplate         = Pkg.PackageSpec(path=julia_awesome_path * "Boilerplate.jl");),
-	"AsyncTerminal"       => (asyncterminal       = Pkg.PackageSpec(path=julia_awesome_path * "AsyncTerminal.jl");),
+	"NamedColors"         => (namedcolors         = Pkg.PackageSpec(path=julia_awesome_path * "NamedColors.jl");),
 )

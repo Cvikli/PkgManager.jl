@@ -1,4 +1,4 @@
-module PkgResolver
+module PkgManager
 using Pkg
 
 reinstall(p::PackageSpec) = (Pkg.resolve(p))
@@ -9,9 +9,7 @@ include("AllOwnPkgs.jl")
 const SKIP_MODULE = ["Base"]
 
 get_pkg_name(pkg) = return pkg.name !== nothing ? pkg.name : split(replace(pkg.path[end] == '/' ? pkg.path[1:end-1] : pkg.path,".jl" => ""),"/")[end]
-get_pkg_root(pattern, str) = begin
-	match(pattern, str)  
-end
+get_pkg_root(pattern, str) = match(pattern, str)  
 
 SOLVE(pkg, all_own_pkg=all_own_pkg) = begin 
 	this_pkg_name = get_pkg_name(pkg)
@@ -99,4 +97,4 @@ end
 # Pkg.resolve()
 
 
-end # module PkgResolver
+end # module PkgManager

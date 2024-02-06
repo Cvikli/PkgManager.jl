@@ -4,14 +4,14 @@ using Pkg
 reinstall(p::PackageSpec) = (Pkg.resolve(p))
 # reinstall(p::PackageSpec) = (Pkg.rm(p.name); Pkg.develop(p))
 
-include("AllOwnPkgs.jl")
+include("DEV_Pkgs.jl")
 
 const SKIP_MODULE = ["Base"]
 
 get_pkg_name(pkg) = return pkg.name !== nothing ? pkg.name : split(replace(pkg.path[end] == '/' ? pkg.path[1:end-1] : pkg.path,".jl" => ""),"/")[end]
 get_pkg_root(pattern, str) = match(pattern, str)  
 
-SOLVE(pkg, all_own_pkg=all_own_pkg) = begin 
+SOLVE_PKG_DEP(pkg, all_own_pkg=all_own_pkg) = begin 
 	this_pkg_name = get_pkg_name(pkg)
 	public_packages = Set{String}()
 	own_packages = Set{PackageSpec}()
@@ -54,6 +54,7 @@ SOLVE(pkg, all_own_pkg=all_own_pkg) = begin
 	# Pkg.precompile()
 	Pkg.activate()
 	Pkg.resolve()
+	Pkg.instantiate()
 end
 
 SHOW_UNUSED(all_own_pkg=all_own_pkg) = begin

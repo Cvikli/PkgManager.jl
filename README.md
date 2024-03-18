@@ -31,8 +31,7 @@ This can RESOLVE the issues with your package AUTOMATICALLY.
 
 ## Install
 ```julia
-] dev ./  # press TAB! So it will list the directories...
-dev ./..navigatethere../PkgManager
+] dev ./..navigatethere../PkgManager  # press TAB! So it will list the directories...
 ```
 
 ## TODO

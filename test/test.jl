@@ -4,40 +4,47 @@ using Revise
 # ] up
 # ] registry up
 
+#%%
 using RelevanceStacktrace
-using PkgManager: SOLVE_PKG_DEP 
-
-
-# SOLVE_PKG_DEP(zygoteextensions)
-# SOLVE_PKG_DEP(hwallocator)
-# SOLVE_PKG_DEP(refclosures)
-# SOLVE_PKG_DEP(aritmetics)
-# SOLVE_PKG_DEP(boilerplate)
-SOLVE_PKG_DEP(binanceapi)
-SOLVE_PKG_DEP(cryptoohlcv)
-# SOLVE_PKG_DEP(losses)
-# SOLVE_PKG_DEP(relevancestacktrace)
-# SOLVE_PKG_DEP(optimizers)
-# SOLVE_PKG_DEP(httputils)
-using PkgManager: SOLVE_PKG_DEP 
+using PkgManager: SOLVE_PKG 
+SOLVE_PKG("BinanceAPI")
+SOLVE_PKG("Pythonish")
+SOLVE_PKG("InitLoadableStruct")
+SOLVE_PKG("ExtendableStruct")
+SOLVE_PKG("PersistableStruct")
+SOLVE_PKG("UniversalStruct")
+SOLVE_PKG("Unimplemented")
+SOLVE_PKG("MyPKG")
+SOLVE_PKG("Utils")
+SOLVE_PKG("TestPKG")
+SOLVE_PKG("MemoizeTyped")
+SOLVE_PKG("Losses")
+SOLVE_PKG("HTTPUtils")
+SOLVE_PKG("Optimizers")
+SOLVE_PKG("HwAllocator")
+SOLVE_PKG("Arithmetics")
+SOLVE_PKG("AsyncTerminal")
+SOLVE_PKG("BinanceAPI")
+SOLVE_PKG("UnicodePlotsSimple")
+SOLVE_PKG("Boilerplate")
+SOLVE_PKG("NamedColors")
+#%%
 using PkgManager: all_own_pkg 
-SOLVE_PKG_DEP("BinanceAPI")
-SOLVE_PKG_DEP("Pythonish")
-SOLVE_PKG_DEP("InitLoadableStruct")
-SOLVE_PKG_DEP("ExtendableStruct")
-SOLVE_PKG_DEP("PersistableStruct")
-SOLVE_PKG_DEP("UniversalStruct")
-SOLVE_PKG_DEP("Unimplemented")
-SOLVE_PKG_DEP("HTTPUtils")
-SOLVE_PKG_DEP("Optimizers")
-SOLVE_PKG_DEP("HwAllocator")
-SOLVE_PKG_DEP("Arithmetics")
-SOLVE_PKG_DEP("RefClosures")
-SOLVE_PKG_DEP("BinanceAPI")
-SOLVE_PKG_DEP("CryptoOHLCV")
-SOLVE_PKG_DEP("UnicodePlotsSimple")
-SOLVE_PKG_DEP("NamedColors")
-SOLVE_PKG_DEP("BinanceAPI")
+all_own_pkg()
+#%%
+using PkgManager: SOLVE_dependency_issue 
+SOLVE_dependency_issue("BinanceAPI")
+#%%
+using PkgManager: CLEAN_Project_toml
+CLEAN_Project_toml("BinanceAPI")
+#%%
+
+
+#%%
+using PkgManager: mypkg, testpkg
+
+
+
 
 #%%
 
@@ -48,3 +55,12 @@ Pkg.precompile()
 
 using PkgDependency
 PkgDependency.tree("Startup")
+
+#%%
+
+
+using Pkg
+
+Pkg.status()
+
+#%%

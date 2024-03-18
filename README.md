@@ -31,7 +31,7 @@ This can RESOLVE the issues with your package AUTOMATICALLY.
 
 ## Install
 ```julia
-] dev ./..navigatethere../PkgManager  # press TAB! So it will list the directories...
+] add https://github.com/Cvikli/PkgManager.jl
 ```
 
 ## TODO

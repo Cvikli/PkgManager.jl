@@ -5,7 +5,7 @@ We should not waste time on pkg management, it should be trivial most of the cas
 
 ## Usage
 Let's say you have [`BinanceAPI.jl`](https://github.com/Cvikli/BinanceAPI.jl) for development pkg (`] dev ./repo.../BinanceAPI.jl`). And you added a package but did not do the manual "shits" you have to do and you don't want to bother with it. 
-You encounter with the [ERROR](#Error)
+Suddenly, you encounter with an like [ERROR](#Error).
 
 Then:
 ```julia
@@ -24,8 +24,12 @@ This can RESOLVE the issues with your package AUTOMATICALLY.
 	- We locate every pkg that is for development and every else that is for public. 
 2. We also this pkg is able to find unnecessary/unused dependency in your Project.toml and remove it. 
 
+## 3 Functions
+- `CLEAN_Project_toml("PkgName")`: cleans the unused packages from Project.toml -> ["deps"] 
+- `SOLVE_dependency_issue("PkgName")`: that resolves the dependency issue.
+- `SOLVE_PKG("PkgName")`: to call each one in order.
 
-# Install
+## Install
 ```julia
 ] dev ./  # press TAB! So it will list the directories...
 dev ./..navigatethere../PkgManager

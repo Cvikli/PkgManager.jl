@@ -2,6 +2,7 @@ module PkgManager
 using Pkg
 using TOML
 using DataStructures
+using Glob
 
 const SKIP_MODULES = ["","Base"]
 
@@ -10,15 +11,22 @@ all_own_pkg() =	(Pkg.activate(); Dict(pkginfo.name=>Pkg.PackageSpec(path=pkginfo
 get_pkg_name(pkg) = return pkg.name !== nothing ? pkg.name : split(replace(pkg.path[end] == '/' ? pkg.path[1:end-1] : pkg.path,".jl" => ""),"/")[end]
 get_pkg_root(pattern, str) = match(pattern, str)  
 
+rdir(dir, pat::Glob.FilenameMatch) = begin
+	result = String[]
+	for (root, dirs, files) in walkdir(dir)
+			append!(result, filter!(f -> occursin(pat, f), joinpath.(root, files)))
+	end
+	return result
+end
+rdir(dir, pat::String) = rdir(dir, Glob.FilenameMatch(pat))
+
 search_modules(pkg, pkg_name) = begin
 	all_modules = Set{String}()
 	pkg_dir = pkg.path * "/src/"
-	files = readdir(pkg_dir)
-	println(files)
-
+	files = rdir(pkg_dir, "*.jl")
+	# display(files)
 	for file in files
-
-		open(pkg_dir * file) do f
+		open(file) do f
 			for l in eachline(f)
 				for pattern in [r"^using ([^:\.\n]*)", r"^import ([^:\.\n]*)"]
 					m = get_pkg_root(pattern, l)

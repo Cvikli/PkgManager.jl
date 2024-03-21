@@ -6,68 +6,78 @@ using Glob
 
 const SKIP_MODULES = ["","Base"]
 
-all_own_pkg() =	(Pkg.activate(); Dict(pkginfo.name=>Pkg.PackageSpec(path=pkginfo.source) for (uuid, pkginfo) in Pkg.dependencies() if pkginfo.is_tracking_path))
+get_all_pkgs() =	(Pkg.activate(); Dict(pkginfo.name=>pkginfo for (uuid, pkginfo) in Pkg.dependencies()))
 
 get_pkg_name(pkg) = return pkg.name !== nothing ? pkg.name : split(replace(pkg.path[end] == '/' ? pkg.path[1:end-1] : pkg.path,".jl" => ""),"/")[end]
-get_pkg_root(pattern, str) = match(pattern, str)  
 
-rdir(dir, pat::Glob.FilenameMatch) = begin
-	result = String[]
-	for (root, dirs, files) in walkdir(dir)
-			append!(result, filter!(f -> occursin(pat, f), joinpath.(root, files)))
-	end
-	return result
+function walk_packages(pkg::Pkg.API.PackageInfo)
+	skip_modules = Set([SKIP_MODULES..., String(pkg_name)])
+	found_packages =  Set{String}()
+	dir, entry_file = pkg.source * "/src", pkg.name * ".jl"
+	walk_packages!(found_packages, dir, entry_file, skip_modules)
 end
-rdir(dir, pat::String) = rdir(dir, Glob.FilenameMatch(pat))
-
-search_modules(pkg, pkg_name) = begin
-	all_modules = Set{String}()
-	pkg_dir = pkg.path * "/src/"
-	files = rdir(pkg_dir, "*.jl")
-	# display(files)
-	for file in files
-		open(file) do f
-			for l in eachline(f)
-				for pattern in [r"^using ([^:\.\n]*)", r"^import ([^:\.\n]*)"]
-					m = get_pkg_root(pattern, l)
-					if !(m === nothing)
-						reg_group_1 = m[1]
-						for pkg_nam in split(reg_group_1, ",") # We handle "using... [with multiple module]"!
-							pkg_name_clean = strip(pkg_nam)
-							pkg_name_clean in SKIP_MODULES && continue
-							pkg_name_clean == pkg_name && @warn "$pkg_name_clean is referencing to your own pkg! USE \".\" (dot reference)"
-							push!(all_modules, pkg_name_clean)
-						end
+# mutating the `found_packages` vector
+function walk_packages!(found_packages, dir, fpath, skip_modules, )
+	open(dir *"/"* fpath) do f
+		for l in eachline(f)
+			for pattern in [r"^include\([\"']([^:\"'\n]+)[\"']\)",
+											r"^includet\([\"']([^:\"'\n]+)[\"']\)"]
+				m = match(pattern, l)
+				if m !== nothing
+					# getting the new path relative to the current dir/file
+					new_dir, filename = dirname(dir *"/"* m[1]), basename(m[1])
+					walk_packages!(found_packages, new_dir, filename, skip_modules, )	
+				end
+			end
+			for pattern in [r"^using ([^:\.\n]*)", r"^import ([^:\.\n]*)"] # TODO could be done with Meta.parse
+				m = match(pattern, l)
+				if m !== nothing
+					for pkg_na in split(m[1], ",")
+						pkg_name = strip(pkg_na)
+						pkg_name in skip_modules && continue
+						# pkg_name == this_pkg_name && @warn "$pkg_name is referencing to your own pkg! USE \".\" (dot fpr reference)"
+						push!(found_packages, pkg_name)
 					end
 				end
 			end
 		end
 	end
-	all_modules
+	found_packages
 end
 
-SOLVE_PKG(pkg_name, own_pkgs=all_own_pkg()) = begin 
-	@assert pkg_name in keys(own_pkgs) "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(keys(own_pkgs)). That's what you want to resolve when you develop your own pkg."
-	found_modules = search_modules(own_pkgs[pkg_name], pkg_name)
-	CLEAN_Project_toml(pkg_name, own_pkgs, found_modules)
-	SOLVE_dependency_issue(pkg_name, own_pkgs, found_modules)
+function SOLVE_PKG(pkg_name, all_pkgs=get_all_pkgs())
+	!(pkg_name in keys(all_pkgs)) && (@warn("We don't know about $pkg_name."); return)
+	@assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
+	pkg = all_pkgs[pkg_name]
+	skip_modules = Set([SKIP_MODULES..., String(pkg_name)])
+	dir, entry_file = pkg.source * "/src", pkg_name * ".jl"
+	found_packages = walk_packages!(Set{String}(), dir, entry_file, skip_modules, )
+
+	CLEAN_Project_toml(pkg_name, all_pkgs, found_packages)
+	SOLVE_dependency_issue(pkg_name, all_pkgs, found_packages)
 end
-SOLVE_dependency_issue(pkg_name, own_pkgs=all_own_pkg(), found_modules=Set{String}()) = begin 
-	@assert pkg_name in keys(own_pkgs) "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(keys(own_pkgs)). That's what you want to resolve when you develop your own pkg."
-	pkg=own_pkgs[pkg_name]
+function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_packages=Set{String}()) 
+	!(pkg_name in keys(all_pkgs)) && (@warn("We don't know about $pkg_name."); return)
+	@assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
+	pkg = all_pkgs[pkg_name]
 
-	found_modules = isempty(found_modules) ? search_modules(pkg, pkg_name) : found_modules
+	found_packages = isempty(found_packages) ? walk_packages(pkg) : found_packages
 
-	public_packages = [pk for pk in found_modules if !(pk in keys(own_pkgs))]
-	own_packages    = [own_pkgs[pk] for pk in found_modules if pk in keys(own_pkgs)]
-
-	println(public_packages)
-	println(get_pkg_name.(own_packages))
-
-	Pkg.activate(pkg.path)
+	Pkg.activate(pkg.source)
 	# Pkg.upgrade_manifest()
-	length(own_packages) > 0 && Pkg.develop(own_packages)
-	length(public_packages) > 0 && Pkg.add(public_packages)
+	found_packages_pkginfo = [all_pkgs[name] for name in found_packages]
+	registry_packages = [PackageSpec(name=pkginfo.name) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_registry]
+	repo_packages = [PackageSpec(url=pkginfo.git_source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo]
+	dev_packages = [PackageSpec(path=pkginfo.source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path]
+	println("Registry packages found: ", [p.name for p in registry_packages])
+	println("Dev packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path])
+	if length(repo_packages) > 0
+		println("Repo packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo])
+	end
+
+	length(dev_packages) > 0 && Pkg.develop(dev_packages)
+	length(registry_packages) > 0 && Pkg.add(registry_packages)
+	length(repo_packages) > 0 && Pkg.add(repo_packages)
 	Pkg.resolve()
 	Pkg.instantiate()
 	# Pkg.precompile()
@@ -76,21 +86,21 @@ SOLVE_dependency_issue(pkg_name, own_pkgs=all_own_pkg(), found_modules=Set{Strin
 	Pkg.instantiate()
 end
 
-CLEAN_Project_toml(pkg_name, own_pkgs=all_own_pkg(), found_modules=Set{String}()) = begin 
-	@assert pkg_name in keys(own_pkgs) "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(keys(own_pkgs)). That's what you want to resolve when you develop your own pkg."
-	pkg=own_pkgs[pkg_name]
+function CLEAN_Project_toml(pkg_name, all_pkgs=get_all_pkgs(), found_modules=Set{String}()) 
+	@assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
+	pkg=all_pkgs[pkg_name]
 
-	Project_toml=TOML.parsefile(pkg.path *"/"* "Project.toml")
+	Project_toml=TOML.parsefile(pkg.source *"/"* "Project.toml")
 	!("deps" in keys(Project_toml)) && return
 
-	found_modules = isempty(found_modules) ? search_modules(pkg, pkg_name) : found_modules
+	found_modules = isempty(found_modules) ? walk_packages(pkg) : found_modules
 
 	removable_pkgs =  String[pk for (pk,uuid) in Project_toml["deps"] if !(pk in found_modules)]
 	!(isempty(removable_pkgs)) && println("$(pkg_name)/Project.toml unused pkgs are being removed: $removable_pkgs") 
 	active_pkgs = OrderedDict{String, Any}(pk=> uuid for (pk,uuid) in Project_toml["deps"] if pk in found_modules)
 	Project_toml["deps"] = sort(active_pkgs)
 	# display(data["deps"])
-	fio = open(pkg.path *"/"* "Project.toml", "w")
+	fio = open(pkg.source * "/" * "Project.toml", "w")
 	TOML.print(fio, Project_toml, sorted=false)
 	close(fio)
 end
@@ -106,7 +116,7 @@ end
 # 		open(fpath) do f
 # 			for l in eachline(f)
 # 				for pattern in [r"^using ([^:\.\n]*)", r"^import ([^:\.\n]*)"]
-# 					m = get_pkg_root(pattern, l)
+# 					m = match(pattern, l)
 # 					if m === nothing
 # 						# println()
 # 					else

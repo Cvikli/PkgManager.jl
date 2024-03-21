@@ -11,7 +11,7 @@ get_all_pkgs() =	(Pkg.activate(); Dict(pkginfo.name=>pkginfo for (uuid, pkginfo)
 get_pkg_name(pkg) = return pkg.name !== nothing ? pkg.name : split(replace(pkg.path[end] == '/' ? pkg.path[1:end-1] : pkg.path,".jl" => ""),"/")[end]
 
 function walk_packages(pkg::Pkg.API.PackageInfo)
-	skip_modules = Set([SKIP_MODULES..., String(pkg_name)])
+	skip_modules = Set([SKIP_MODULES..., String(pkg.name)])
 	found_packages =  Set{String}()
 	dir, entry_file = pkg.source * "/src", pkg.name * ".jl"
 	walk_packages!(found_packages, dir, entry_file, skip_modules)

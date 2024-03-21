@@ -72,12 +72,12 @@ function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_package
 	println("Registry packages found: ", [p.name for p in registry_packages])
 	println("Dev packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path])
 	if length(repo_packages) > 0
+		@warn "Still repo packages can cause issues. TODO experiment with the cases when it really causes issues. Usually git clone and Pkg.develop(PKG) solves the issues."
 		println("Repo packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo])
 	end
-
+	length(repo_packages) > 0 && Pkg.add(repo_packages)
 	length(dev_packages) > 0 && Pkg.develop(dev_packages)
 	length(registry_packages) > 0 && Pkg.add(registry_packages)
-	length(repo_packages) > 0 && Pkg.add(repo_packages)
 	Pkg.resolve()
 	Pkg.instantiate()
 	# Pkg.precompile()

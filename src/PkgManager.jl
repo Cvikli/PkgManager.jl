@@ -4,6 +4,7 @@ using TOML
 using DataStructures
 using Glob
 
+export SOLVE_PKG
 const SKIP_MODULES = ["","Base"]
 
 get_all_pkgs() =	(Pkg.activate(); Dict(pkginfo.name=>pkginfo for (uuid, pkginfo) in Pkg.dependencies()))

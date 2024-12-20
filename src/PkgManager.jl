@@ -27,10 +27,10 @@ function walk_packages!(found_packages, dir, fpath, skip_modules, )
 				if m !== nothing
 					# getting the new path relative to the current dir/file
 					new_dir, filename = dirname(dir *"/"* m[1]), basename(m[1])
-					walk_packages!(found_packages, new_dir, filename, skip_modules, )	
+					walk_packages!(found_packages, new_dir, filename, skip_modules, )
 				end
 			end
-			for pattern in [r"^using ([^:\.\n]*)", r"^import ([^:\.\n]*)"] # TODO could be done with Meta.parse
+			for pattern in [r"^using ([^#\n:\.]*)", r"^import ([^#\n:\.]*)"] # TODO could be done with Meta.parse
 				m = match(pattern, l)
 				if m !== nothing
 					for pkg_na in split(m[1], ",")
@@ -57,34 +57,48 @@ function SOLVE_PKG(pkg_name, all_pkgs=get_all_pkgs())
 	CLEAN_Project_toml(pkg_name, all_pkgs, found_packages)
 	SOLVE_dependency_issue(pkg_name, all_pkgs, found_packages)
 end
-function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_packages=Set{String}()) 
-	!(pkg_name in keys(all_pkgs)) && (@warn("We don't know about $pkg_name."); return)
-	@assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
-	pkg = all_pkgs[pkg_name]
+function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_packages=Set{String}())
+    !(pkg_name in keys(all_pkgs)) && (@warn("We don't know about $pkg_name."); return)
+    @assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
+    pkg = all_pkgs[pkg_name]
 
-	found_packages = isempty(found_packages) ? walk_packages(pkg) : found_packages
+    found_packages = isempty(found_packages) ? walk_packages(pkg) : found_packages
+    @show pkg.source
+    @show found_packages
 
-	Pkg.activate(pkg.source)
-	# Pkg.upgrade_manifest()
-	found_packages_pkginfo = [all_pkgs[name] for name in found_packages]
-	registry_packages = [PackageSpec(name=pkginfo.name) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_registry]
-	repo_packages = [PackageSpec(url=pkginfo.git_source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo]
-	dev_packages = [PackageSpec(path=pkginfo.source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path]
-	println("Registry packages found: ", [p.name for p in registry_packages])
-	println("Dev packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path])
-	if length(repo_packages) > 0
-		@warn "Still repo packages can cause issues. TODO experiment with the cases when it really causes issues. Usually git clone and Pkg.develop(PKG) solves the issues."
-		println("Repo packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo])
-	end
-	length(repo_packages) > 0 && Pkg.add(repo_packages)
-	length(dev_packages) > 0 && Pkg.develop(dev_packages)
-	length(registry_packages) > 0 && Pkg.add(registry_packages)
-	Pkg.resolve()
-	Pkg.instantiate()
-	# Pkg.precompile()
-	Pkg.activate()
-	Pkg.resolve()
-	Pkg.instantiate()
+    Pkg.activate(pkg.source)
+    # Pkg.upgrade_manifest()
+
+    # Handle packages that aren't installed yet
+    uninstalled_packages = filter(name -> !(name in keys(all_pkgs)), collect(found_packages))
+    if !isempty(uninstalled_packages)
+        @info "Installing missing packages: $uninstalled_packages"
+        Pkg.add(PackageSpec.(name=uninstalled_packages))
+        all_pkgs = get_all_pkgs() # Refresh package list after installations
+    end
+
+    # Process installed packages
+    found_packages_pkginfo = [all_pkgs[name] for name in found_packages if name in keys(all_pkgs)]
+    registry_packages = [PackageSpec(name=pkginfo.name) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_registry]
+    repo_packages = [PackageSpec(url=pkginfo.git_source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo]
+    dev_packages = [PackageSpec(path=pkginfo.source) for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path]
+
+    println("Registry packages found: ", [p.name for p in registry_packages])
+    println("Dev packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_path])
+    if length(repo_packages) > 0
+        @warn "Still repo packages can cause issues. TODO experiment with the cases when it really causes issues. Usually git clone and Pkg.develop(PKG) solves the issues."
+        println("Repo packages found: ", [pkginfo.name for pkginfo in found_packages_pkginfo if pkginfo.is_tracking_repo])
+    end
+
+    length(repo_packages) > 0 && Pkg.add(repo_packages)
+    length(dev_packages) > 0 && Pkg.develop(dev_packages)
+    length(registry_packages) > 0 && Pkg.add(registry_packages)
+    Pkg.resolve()
+    Pkg.instantiate()
+    # Pkg.precompile()
+    Pkg.activate()
+    Pkg.resolve()
+    Pkg.instantiate()
 end
 
 function CLEAN_Project_toml(pkg_name, all_pkgs=get_all_pkgs(), found_modules=Set{String}()) 
@@ -146,5 +160,42 @@ end
 # # Pkg.gc()
 # Pkg.resolve()
 
+
+function check_dependency_status(pkg_name::String, all_pkgs=get_all_pkgs())
+    if !(pkg_name in keys(all_pkgs))
+        @warn("We don't know about $pkg_name.")
+        return
+    end
+
+    pkg = all_pkgs[pkg_name]
+
+    if !pkg.is_tracking_path
+        println("$pkg_name is not a development package.")
+        return
+    end
+
+    println("Checking dependencies for $pkg_name:")
+    Project_toml = TOML.parsefile(pkg.source *"/"* "Project.toml")
+    !("deps" in keys(Project_toml)) && return
+
+    Pkg.activate(pkg.source)
+    for (dep_name, dep_uuid) in Project_toml["deps"]
+        dep_pkg = get(all_pkgs, dep_name, nothing)
+        if dep_pkg === nothing
+            println("  - $dep_name is not installed. Installing from registry...")
+            Pkg.add(dep_name)
+        elseif dep_pkg.is_tracking_path
+            println("  - $dep_name is in development mode")
+        elseif !dep_pkg.is_tracking_registry
+            println("  - $dep_name is not in development mode or registry. Installing from registry...")
+            Pkg.add(dep_name)
+        else
+            println("  - $dep_name is installed from registry")
+        end
+    end
+    Pkg.activate()
+end
+
+export check_dependency_status
 
 end # module PkgManager

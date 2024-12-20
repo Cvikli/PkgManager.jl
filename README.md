@@ -25,9 +25,9 @@ This can RESOLVE the issues with your package AUTOMATICALLY.
 2. We also this pkg is able to find unnecessary/unused dependency in your Project.toml and remove it. 
 
 ## 3 Functions
-- `CLEAN_Project_toml("PkgName")`: cleans the unused packages from Project.toml -> ["deps"] 
-- `SOLVE_dependency_issue("PkgName")`: that resolves the dependency issue.
 - `SOLVE_PKG("PkgName")`: to call each one in order.
+- `SOLVE_dependency_issue("PkgName")`: that resolves the dependency issue.
+- `CLEAN_Project_toml("PkgName")`: cleans the unused packages from Project.toml -> ["deps"] 
 
 ## Install
 ```julia

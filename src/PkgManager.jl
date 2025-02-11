@@ -54,8 +54,8 @@ function SOLVE_PKG(pkg_name, all_pkgs=get_all_pkgs())
 	dir, entry_file = pkg.source * "/src", pkg_name * ".jl"
 	found_packages = walk_packages!(Set{String}(), dir, entry_file, skip_modules, )
 
-	CLEAN_Project_toml(pkg_name, all_pkgs, found_packages)
 	SOLVE_dependency_issue(pkg_name, all_pkgs, found_packages)
+	CLEAN_Project_toml(pkg_name, all_pkgs, found_packages)
 end
 function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_packages=Set{String}())
     !(pkg_name in keys(all_pkgs)) && (@warn("We don't know about $pkg_name."); return)
@@ -67,13 +67,14 @@ function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_package
     @show found_packages
 
     Pkg.activate(pkg.source)
-    # Pkg.upgrade_manifest()
-
-    # Handle packages that aren't installed yet
+    # First, collect all development package names from the environment
+    # dev_pkg_names = Set(String(pkginfo.name) for pkginfo in values(all_pkgs) if pkginfo.is_tracking_path)
+    # @show dev_pkg_names
+    # Exclude any package that is already installed or is a development package
     uninstalled_packages = filter(name -> !(name in keys(all_pkgs)), collect(found_packages))
     if !isempty(uninstalled_packages)
-        @info "Installing missing packages: $uninstalled_packages"
-        Pkg.add(PackageSpec.(name=uninstalled_packages))
+        @info "Installing missing packages (excluding dev packages): $uninstalled_packages"
+        Pkg.add([PackageSpec(name=pkg) for pkg in uninstalled_packages])
         all_pkgs = get_all_pkgs() # Refresh package list after installations
     end
 
@@ -103,9 +104,9 @@ end
 
 function CLEAN_Project_toml(pkg_name, all_pkgs=get_all_pkgs(), found_modules=Set{String}()) 
 	@assert all_pkgs[pkg_name].is_tracking_path "$pkg_name is not a development pkg as far as we see. Dev pkgs are $(map(o->o.name, filter(o->o.is_tracking_path, collect(values(all_pkgs))))). That's what you want to resolve when you develop your own pkg."
-	pkg=all_pkgs[pkg_name]
+	pkg = all_pkgs[pkg_name]
 
-	Project_toml=TOML.parsefile(pkg.source *"/"* "Project.toml")
+	Project_toml = TOML.parsefile(pkg.source * "/" * "Project.toml")
 	!("deps" in keys(Project_toml)) && return
 
 	found_modules = isempty(found_modules) ? walk_packages(pkg) : found_modules
@@ -114,12 +115,17 @@ function CLEAN_Project_toml(pkg_name, all_pkgs=get_all_pkgs(), found_modules=Set
 	!(isempty(removable_pkgs)) && println("$(pkg_name)/Project.toml unused pkgs are being removed: $removable_pkgs") 
 	active_pkgs = OrderedDict{String, Any}(pk=> uuid for (pk,uuid) in Project_toml["deps"] if pk in found_modules)
 	Project_toml["deps"] = sort(active_pkgs)
-	# display(data["deps"])
+    
+    # Optionally remove the [compat] section if it exists
+    if haskey(Project_toml, "compat")
+        println("Removing [compat] section from Project.toml")
+        delete!(Project_toml, "compat")
+    end
+
 	fio = open(pkg.source * "/" * "Project.toml", "w")
 	TOML.print(fio, Project_toml, sorted=false)
 	close(fio)
 end
-
 # SHOW_UNUSED(own_pkgs=all_own_pkg()) = begin
 # 	this_pkg_name = get_pkg_name(pkg)
 # 	public_packages = Set{String}()

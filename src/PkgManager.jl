@@ -116,11 +116,11 @@ function CLEAN_Project_toml(pkg_name, all_pkgs=get_all_pkgs(), found_modules=Set
 	active_pkgs = OrderedDict{String, Any}(pk=> uuid for (pk,uuid) in Project_toml["deps"] if pk in found_modules)
 	Project_toml["deps"] = sort(active_pkgs)
     
-    # Optionally remove the [compat] section if it exists
-    if haskey(Project_toml, "compat")
-        println("Removing [compat] section from Project.toml")
-        delete!(Project_toml, "compat")
-    end
+    # # Optionally remove the [compat] section if it exists
+    # if haskey(Project_toml, "compat")
+    #     println("Removing [compat] section from Project.toml")
+    #     delete!(Project_toml, "compat")
+    # end
 
 	fio = open(pkg.source * "/" * "Project.toml", "w")
 	TOML.print(fio, Project_toml, sorted=false)

@@ -20,7 +20,16 @@ end
 # mutating the `found_packages` vector
 function walk_packages!(found_packages, dir, fpath, skip_modules, )
 	open(dir *"/"* fpath) do f
-		for l in eachline(f)
+		in_multiline_comment = false
+		for l_raw in eachline(f)
+			l = strip(l_raw)
+			if occursin(r"\"\"\"", l)
+					in_multiline_comment = !in_multiline_comment
+					continue
+			end
+			# Skip processing if we're inside a multi-line comment
+			in_multiline_comment && continue
+			
 			for pattern in [r"^include\([\"']([^:\"'\n]+)[\"']\)",
 											r"^includet\([\"']([^:\"'\n]+)[\"']\)"]
 				m = match(pattern, l)
@@ -63,8 +72,6 @@ function SOLVE_dependency_issue(pkg_name, all_pkgs=get_all_pkgs(), found_package
     pkg = all_pkgs[pkg_name]
 
     found_packages = isempty(found_packages) ? walk_packages(pkg) : found_packages
-    @show pkg.source
-    @show found_packages
 
     Pkg.activate(pkg.source)
     # First, collect all development package names from the environment
